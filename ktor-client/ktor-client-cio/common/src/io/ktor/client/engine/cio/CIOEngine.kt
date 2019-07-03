@@ -9,20 +9,20 @@ import io.ktor.client.request.*
 import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.network.selector.*
+import io.ktor.util.collections.*
+import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
-import java.io.*
-import java.net.*
-import java.util.concurrent.*
 
-internal class CIOEngine(override val config: CIOEngineConfig) : HttpClientEngineBase("ktor-cio") {
+internal class CIOEngine(
+    override val config: CIOEngineConfig
+) : HttpClientEngineBase("ktor-cio") {
+    override val dispatcher: CoroutineDispatcher by lazy { createClientDispatcher(config.threadsCount) }
 
-    override val dispatcher by lazy { Dispatchers.fixedThreadPoolDispatcher(config.threadsCount, "ktor-cio-thread-%d") }
-
-    private val endpoints = ConcurrentHashMap<String, Endpoint>()
+    private val endpoints = ConcurrentMap<String, Endpoint>()
 
     @UseExperimental(InternalCoroutinesApi::class)
-    private val selectorManager by lazy { ActorSelectorManager(dispatcher) }
+    private val selectorManager: SelectorManager by lazy { platformSelectorManager(dispatcher) }
 
     private val connectionFactory = ConnectionFactory(selectorManager, config.maxConnectionsCount)
 
@@ -78,7 +78,7 @@ internal class CIOEngine(override val config: CIOEngineConfig) : HttpClientEngin
 
         val endpointId = "$host:$port:$protocol"
 
-        return endpoints.computeIfAbsentWeak(endpointId) {
+        return endpoints.getOrDefault(endpointId) {
             val secure = (protocol.isSecure())
             Endpoint(
                 host, port, proxy != null, secure,
@@ -93,16 +93,3 @@ internal class CIOEngine(override val config: CIOEngineConfig) : HttpClientEngin
 @Suppress("KDocMissingDocumentation")
 @Deprecated("Use ClientEngineClosedException instead", replaceWith = ReplaceWith("ClientEngineClosedException"))
 class ClientClosedException(cause: Throwable? = null) : IllegalStateException("Client already closed", cause)
-
-private fun <K : Any, V : Closeable> ConcurrentHashMap<K, V>.computeIfAbsentWeak(key: K, block: (K) -> V): V {
-    get(key)?.let { return it }
-
-    val newValue = block(key)
-    val result = putIfAbsent(key, newValue)
-    if (result != null) {
-        newValue.close()
-        return result
-    }
-
-    return newValue
-}
