@@ -4,7 +4,6 @@
 package io.ktor.network.selector
 
 import io.ktor.network.interop.*
-import io.ktor.network.sockets.*
 import io.ktor.network.util.*
 import io.ktor.util.collections.*
 import kotlinx.cinterop.*

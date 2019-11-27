@@ -4,8 +4,8 @@
 
 package io.ktor.network.selector
 
+import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
-import kotlinx.io.core.*
 
 actual interface SelectorManager : CoroutineScope, Closeable {
     /**

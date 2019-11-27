@@ -4,6 +4,7 @@
 
 package io.ktor.client.engine.cio
 
+import io.ktor.client.engine.cio.write
 import io.ktor.client.request.*
 import io.ktor.network.sockets.*
 import io.ktor.network.sockets.Socket
@@ -11,11 +12,10 @@ import io.ktor.network.tls.*
 import io.ktor.network.util.*
 import io.ktor.util.*
 import io.ktor.util.date.*
+import io.ktor.utils.io.core.*
 import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.io.core.*
-import java.nio.channels.*
 import kotlin.coroutines.*
 
 internal class Endpoint(
@@ -146,9 +146,7 @@ internal class Endpoint(
 
         try {
             repeat(retryAttempts) {
-                val address = InetSocketAddress(host, port)
-
-                if (address.isUnresolved) throw UnresolvedAddressException()
+                val address = NetworkAddress(host, port)
 
                 val connection = withTimeoutOrNull(connectTimeout) {
                     connectionFactory.connect(address)

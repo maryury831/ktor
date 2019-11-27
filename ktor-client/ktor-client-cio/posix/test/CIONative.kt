@@ -5,18 +5,17 @@
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
-import io.ktor.client.utils.*
-import kotlinx.io.core.*
+import io.ktor.utils.io.core.*
+import kotlinx.coroutines.*
 import kotlin.test.*
 
 class CIONative {
 
     @Test
-    fun testGoogle() {
+    fun testGoogle(): Unit = runBlocking {
         HttpClient(CIO).use { client ->
-            client.runBlocking {
-                client.get<String>("http://www.google.ru/")
-            }
+            client.get<String>("http://www.google.ru/")
+            Unit
         }
     }
 }

@@ -10,14 +10,15 @@ import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.util.collections.*
-import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 
 internal class CIOEngine(
     override val config: CIOEngineConfig
 ) : HttpClientEngineBase("ktor-cio") {
-    override val dispatcher: CoroutineDispatcher by lazy { createClientDispatcher(config.threadsCount) }
+    override val dispatcher: CoroutineDispatcher by lazy {
+        Dispatchers.clientDispatcher(config.threadsCount, "ktor-cio-thread-%d")
+    }
 
     private val endpoints = ConcurrentMap<String, Endpoint>()
 
@@ -26,12 +27,13 @@ internal class CIOEngine(
 
     private val connectionFactory = ConnectionFactory(selectorManager, config.maxConnectionsCount)
 
-    private val proxy = when (val type = config.proxy?.type()) {
-        Proxy.Type.DIRECT,
-        null -> null
-        Proxy.Type.HTTP -> config.proxy
-        else -> throw IllegalStateException("Proxy of type $type is unsupported by CIO engine.")
-    }
+    private val proxy: ProxyConfig? = null
+//        when (val type = config.proxy?.type()) {
+//        Proxy.Type.DIRECT,
+//        null -> null
+//        Proxy.Type.HTTP -> config.proxy
+//        else -> throw IllegalStateException("Proxy of type $type is unsupported by CIO engine.")
+//    }
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         val callContext = callContext()
@@ -67,18 +69,18 @@ internal class CIOEngine(
         val port: Int
         val protocol: URLProtocol = url.protocol
 
-        if (proxy != null) {
-            val proxyAddress = proxy.address() as InetSocketAddress
-            host = proxyAddress.hostName
-            port = proxyAddress.port
-        } else {
-            host = url.host
-            port = url.port
-        }
+//        if (proxy != null) {
+//            val proxyAddress = proxy.address() as InetSocketAddress
+//            host = proxyAddress.hostName
+//            port = proxyAddress.port
+//        } else {
+        host = url.host
+        port = url.port
+//        }
 
         val endpointId = "$host:$port:$protocol"
 
-        return endpoints.getOrDefault(endpointId) {
+        return endpoints.computeIfAbsent(endpointId) {
             val secure = (protocol.isSecure())
             Endpoint(
                 host, port, proxy != null, secure,

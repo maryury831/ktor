@@ -19,7 +19,6 @@ import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 import io.ktor.utils.io.pool.*
 import kotlinx.coroutines.sync.*
-import kotlinx.io.core.*
 import kotlin.coroutines.*
 
 internal class ConnectionPipeline(

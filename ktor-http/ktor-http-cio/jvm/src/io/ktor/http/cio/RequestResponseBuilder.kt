@@ -4,6 +4,7 @@
 
 package io.ktor.http.cio
 
+import io.ktor.utils.io.core.*
 import java.nio.*
 
 /**
