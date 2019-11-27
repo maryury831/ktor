@@ -1,11 +1,12 @@
 package io.ktor.utils.io
 
 import io.ktor.utils.io.core.*
+import io.ktor.utils.io.core.internal.*
+import io.ktor.utils.io.internal.*
+import io.ktor.utils.io.pool.*
 import kotlinx.cinterop.*
 import kotlinx.coroutines.*
-import io.ktor.utils.io.internal.*
-import io.ktor.utils.io.core.internal.ChunkBuffer
-import io.ktor.utils.io.pool.ObjectPool
+import kotlin.native.concurrent.*
 
 
 /**
@@ -54,11 +55,16 @@ actual suspend fun ByteReadChannel.copyTo(dst: ByteWriteChannel, limit: Long): L
     return (this as ByteChannelSequentialBase).copyToSequentialImpl((dst as ByteChannelSequentialBase), limit)
 }
 
-internal class ByteChannelNative(initial: IoBuffer,
-                                 autoFlush: Boolean,
-                                 pool: ObjectPool<ChunkBuffer> = ChunkBuffer.Pool) :
-    ByteChannelSequentialBase(initial, autoFlush, pool) {
+internal class ByteChannelNative(
+    initial: IoBuffer,
+    autoFlush: Boolean,
+    pool: ObjectPool<ChunkBuffer> = ChunkBuffer.Pool
+) : ByteChannelSequentialBase(initial, autoFlush, pool) {
     private var attachedJob: Job? = null
+
+    init {
+        ensureNeverFrozen()
+    }
 
     @UseExperimental(InternalCoroutinesApi::class)
     override fun attachJob(job: Job) {
