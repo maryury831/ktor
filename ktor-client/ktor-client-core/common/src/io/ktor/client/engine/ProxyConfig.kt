@@ -1,6 +1,7 @@
 package io.ktor.client.engine
 
 import io.ktor.http.*
+import io.ktor.network.util.*
 
 
 /**
@@ -9,6 +10,13 @@ import io.ktor.http.*
  * See [ProxyBuilder] to create proxy.
  */
 expect class ProxyConfig
+
+/**
+ * Resolve remote address of [ProxyConfig].
+ *
+ * This operations can block.
+ */
+expect fun ProxyConfig.resolveAddress(): NetworkAddress
 
 /**
  * [ProxyConfig] factory.

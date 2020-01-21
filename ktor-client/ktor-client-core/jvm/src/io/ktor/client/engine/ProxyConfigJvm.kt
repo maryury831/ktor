@@ -1,6 +1,7 @@
 package io.ktor.client.engine
 
 import io.ktor.http.*
+import io.ktor.network.util.*
 import java.net.*
 
 /**
@@ -23,4 +24,13 @@ actual object ProxyBuilder {
      * Create socks proxy from [host] and [port].
      */
     actual fun socks(host: String, port: Int): ProxyConfig = Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port))
+}
+
+/**
+ * Resolve remote address of [ProxyConfig].
+ *
+ * This operations can block.
+ */
+actual fun ProxyConfig.resolveAddress(): NetworkAddress {
+    return address() as NetworkAddress
 }

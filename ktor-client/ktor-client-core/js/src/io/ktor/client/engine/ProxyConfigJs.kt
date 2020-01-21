@@ -1,6 +1,7 @@
 package io.ktor.client.engine
 
 import io.ktor.http.*
+import io.ktor.network.util.*
 
 /**
  * Proxy configuration.
@@ -26,4 +27,13 @@ actual object ProxyBuilder {
     actual fun socks(host: String, port: Int): ProxyConfig {
         error("Proxy unsupported in js client engine.")
     }
+}
+
+/**
+ * Resolve remote address of [ProxyConfig].
+ *
+ * This operations can block.
+ */
+actual fun ProxyConfig.resolveAddress(): NetworkAddress {
+    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
 }
