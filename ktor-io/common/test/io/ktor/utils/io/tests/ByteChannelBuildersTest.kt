@@ -13,7 +13,7 @@ class ByteChannelBuildersTest {
     @Test
     fun testWriterCancelledByChannel() = testSuspend {
         val context = Job()
-        val scope = CoroutineScope(context)
+        val scope = CoroutineScope(coroutineContext + context)
 
         val task = scope.writer {
             val data = ByteArray(8 * 1024)

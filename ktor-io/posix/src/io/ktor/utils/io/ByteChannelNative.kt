@@ -186,6 +186,20 @@ internal class ByteChannelNative(
         return writeAvailableSuspend(src, offset, length)
     }
 
+    override fun close(cause: Throwable?): Boolean {
+        val close = super.close(cause)
+        val job = attachedJob
+        if (close && job != null && cause != null) {
+            if (cause is CancellationException) {
+                job.cancel(cause)
+            } else {
+                job.cancel("Channel is cancelled", cause)
+            }
+        }
+
+        return close
+    }
+
     private suspend fun writeAvailableSuspend(src: CPointer<ByteVar>, offset: Long, length: Long): Int {
         awaitFreeSpace()
         return writeAvailable(src, offset, length)
@@ -204,4 +218,6 @@ internal class ByteChannelNative(
         readable.readFully(ptr, 0, size)
         return size
     }
+
+    override fun toString(): String = "ByteChannelNative[$attachedJob, ${hashCode()}]"
 }

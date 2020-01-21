@@ -1,6 +1,7 @@
 val ideaActive: Boolean by project.extra
 
 kotlin {
+
     sourceSets {
         if (ideaActive) {
             val posixIde by creating {
