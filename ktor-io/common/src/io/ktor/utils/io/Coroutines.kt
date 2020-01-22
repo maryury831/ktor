@@ -125,14 +125,12 @@ private fun <S : CoroutineScope> CoroutineScope.launchChannel(
             block(ChannelScope(this, channel) as S)
         } catch (cause: Throwable) {
             channel.close(cause)
+            throw cause
         } finally {
             channel.close()
+            channel.closedCause?.let { throw it }
         }
     }
-
-//    job.invokeOnCompletion { cause ->
-//        channel.close(cause)
-//    }
 
     return ChannelJob(job, channel)
 }
