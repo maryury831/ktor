@@ -40,7 +40,10 @@ internal class TCPSocketNative(
                     val buffer = request(1) ?: error("Internal error. Buffer unavailable")
 
                     val count = buffer.writeDirect {
-                        val result = recv(descriptor, it, buffer.writeRemaining.convert(), 0).toInt()
+                        val arg2 = buffer.writeRemaining.convert<size_t>()
+                        println("remaining size: $arg2")
+                        val result = recv(descriptor, it, arg2, 0).toInt()
+                        println("recv result: $result")
 
                         if (result == 0) {
                             channel.close()
@@ -56,8 +59,10 @@ internal class TCPSocketNative(
 
                         result.convert()
                     }
+                    println("received bytes $count")
 
                     if (count == 0 && !channel.isClosedForWrite) {
+                        println("select again")
                         selector.select(selectable, SelectInterest.READ)
                     }
 

@@ -29,6 +29,7 @@ class WorkerSelectorManager : SelectorManager {
         selectable: Selectable,
         interest: SelectInterest
     ) {
+        println("Select $selectable, $interest")
         if (events.isClosed) return
 
         return suspendCancellableCoroutine { continuation ->

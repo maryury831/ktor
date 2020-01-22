@@ -9,6 +9,8 @@ import io.ktor.client.request.*
 import io.ktor.client.utils.*
 import io.ktor.http.*
 import io.ktor.network.selector.*
+import io.ktor.network.util.*
+import io.ktor.util.*
 import io.ktor.util.collections.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
@@ -16,6 +18,10 @@ import kotlinx.coroutines.channels.*
 internal class CIOEngine(
     override val config: CIOEngineConfig
 ) : HttpClientEngineBase("ktor-cio") {
+    init {
+        preventFreeze()
+    }
+
     override val dispatcher: CoroutineDispatcher by lazy {
         Dispatchers.clientDispatcher(config.threadsCount, "ktor-cio-thread-%d")
     }
@@ -69,14 +75,14 @@ internal class CIOEngine(
         val port: Int
         val protocol: URLProtocol = url.protocol
 
-//        if (proxy != null) {
-//            val proxyAddress = proxy.address() as InetSocketAddress
-//            host = proxyAddress.hostName
-//            port = proxyAddress.port
-//        } else {
-        host = url.host
-        port = url.port
-//        }
+        if (proxy != null) {
+            val proxyAddress = proxy.resolveAddress()
+            host = proxyAddress.hostname
+            port = proxyAddress.port
+        } else {
+            host = url.host
+            port = url.port
+        }
 
         val endpointId = "$host:$port:$protocol"
 

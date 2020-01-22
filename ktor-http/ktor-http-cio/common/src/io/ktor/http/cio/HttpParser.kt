@@ -61,7 +61,9 @@ suspend fun parseResponse(input: ByteReadChannel): Response? {
     val range = MutableRange(0, 0)
 
     try {
+        println("read line")
         if (!input.readUTF8LineTo(builder, HTTP_LINE_LIMIT)) return null
+        println("read line done")
         range.end = builder.length
 
         val version = parseVersion(builder, range)

@@ -4,10 +4,8 @@
 
 package io.ktor.client.engine.cio
 
-import io.ktor.client.engine.cio.write
 import io.ktor.client.request.*
 import io.ktor.network.sockets.*
-import io.ktor.network.sockets.Socket
 import io.ktor.network.tls.*
 import io.ktor.network.util.*
 import io.ktor.util.*
@@ -15,7 +13,7 @@ import io.ktor.util.date.*
 import io.ktor.utils.io.core.*
 import kotlinx.atomicfu.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.*
 import kotlin.coroutines.*
 
 internal class Endpoint(
@@ -28,6 +26,10 @@ internal class Endpoint(
     override val coroutineContext: CoroutineContext,
     private val onDone: () -> Unit
 ) : CoroutineScope, Closeable {
+    init {
+        preventFreeze()
+    }
+
     private val address = NetworkAddress(host, port)
 
     private val connections: AtomicInt = atomic(0)
@@ -36,38 +38,40 @@ internal class Endpoint(
 
     private val maxEndpointIdleTime: Long = 2 * config.endpoint.connectTimeout
 
-    private val postman = launch(start = CoroutineStart.LAZY) {
-        try {
-            while (true) {
-                val task = withTimeout(maxEndpointIdleTime) {
-                    tasks.receive()
-                }
-
-                try {
-                    if (!config.pipelining || task.requiresDedicatedConnection()) {
-                        makeDedicatedRequest(task)
-                    } else {
-                        makePipelineRequest(task)
-                    }
-                } catch (cause: Throwable) {
-                    task.response.resumeWithException(cause)
-                    throw cause
-                }
-            }
-        } catch (cause: Throwable) {
-        } finally {
-            deliveryPoint.close()
-            tasks.close()
-            onDone()
-        }
-    }
+//    private val postman = launch(Dispatchers.Unconfined, start = CoroutineStart.LAZY) {
+//        try {
+//            while (true) {
+//                val task = withTimeout(maxEndpointIdleTime) {
+//                    tasks.receive()
+//                }
+//
+//                try {
+//
+//                } catch (cause: Throwable) {
+//                    task.response.resumeWithException(cause)
+//                    throw cause
+//                }
+//            }
+//        } catch (cause: Throwable) {
+//        } finally {
+//            deliveryPoint.close()
+//            tasks.close()
+//            onDone()
+//        }
+//    }
 
     suspend fun execute(
         request: HttpRequestData,
         callContext: CoroutineContext
-    ): HttpResponseData = suspendCancellableCoroutine { continuation ->
-        val task = RequestTask(request, continuation, callContext)
-        tasks.offer(task)
+    ): HttpResponseData {
+//        val task = RequestTask(request, continuation, callContext)
+
+        return if (!config.pipelining || request.requiresDedicatedConnection()) {
+            makeDedicatedRequest(request, callContext).await()
+        } else {
+            TODO()
+//            makePipelineRequest(TODO())
+        }
     }
 
     private suspend fun makePipelineRequest(task: RequestTask) {
@@ -87,41 +91,39 @@ internal class Endpoint(
     }
 
     private fun makeDedicatedRequest(
-        task: RequestTask
-    ): Job = launch(task.context + CoroutineName("DedicatedRequest")) {
-        val (request, response, callContext) = task
-        try {
-            val connection = connect()
-            val input = connection.openReadChannel()
-            val output = connection.openWriteChannel()
+        request: HttpRequestData, callContext: CoroutineContext
+    ): Deferred<HttpResponseData> = async(callContext + CoroutineName("DedicatedRequest")) {
+        val connection = connect()
+        val input = connection.openReadChannel()
+        val output = connection.openWriteChannel()
 
-            val requestTime = GMTDate()
+        val requestTime = GMTDate()
 
-            val timeout = config.requestTimeout
-            val responseData = if (timeout == 0L) {
+        val timeout = config.requestTimeout
+        val responseData = if (timeout == 0L) {
+            request.write(output.wrap(callContext, config.endpoint.allowHalfClose), callContext, overProxy)
+            readResponse(requestTime, request, input, output, callContext)
+        } else {
+            withTimeout(timeout) {
                 request.write(output.wrap(callContext, config.endpoint.allowHalfClose), callContext, overProxy)
+                println("read response")
                 readResponse(requestTime, request, input, output, callContext)
-            } else {
-                withTimeout(timeout) {
-                    request.write(output.wrap(callContext, config.endpoint.allowHalfClose), callContext, overProxy)
-                    readResponse(requestTime, request, input, output, callContext)
-                }
             }
-
-            callContext[Job]!!.invokeOnCompletion { cause ->
-                try {
-                    input.cancel(cause)
-                    output.close(cause)
-                    connection.close()
-                    releaseConnection()
-                } catch (_: Throwable) {
-                }
-            }
-
-            response.resume(responseData)
-        } catch (cause: Throwable) {
-            response.resumeWithException(cause)
         }
+
+        println("Done with reading")
+        callContext[Job]!!.invokeOnCompletion { cause ->
+            try {
+                input.cancel(cause)
+                output.close(cause)
+                connection.close()
+                releaseConnection()
+            } catch (_: Throwable) {
+            }
+        }
+
+        println("resume with $responseData")
+        return@async responseData
     }
 
     private suspend fun createPipeline() {
@@ -182,10 +184,6 @@ internal class Endpoint(
 
     override fun close() {
         tasks.close()
-    }
-
-    init {
-        postman.start()
     }
 }
 

@@ -16,9 +16,9 @@ internal data class RequestTask(
     val context: CoroutineContext
 )
 
-internal fun RequestTask.requiresDedicatedConnection(): Boolean = listOf(request.headers, request.body.headers).any {
+internal fun HttpRequestData.requiresDedicatedConnection(): Boolean = listOf(headers, body.headers).any {
     it[HttpHeaders.Connection] == "close" || it.contains(HttpHeaders.Upgrade)
-} || request.method !in listOf(HttpMethod.Get, HttpMethod.Head)
+} || method !in listOf(HttpMethod.Get, HttpMethod.Head)
 
 
 internal data class ConnectionResponseTask(

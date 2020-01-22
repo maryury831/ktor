@@ -13,7 +13,7 @@ import kotlin.coroutines.*
 import kotlin.math.*
 import kotlin.native.concurrent.*
 
-internal class EventInfo(
+internal data class EventInfo(
     val descriptor: Int,
     val interest: SelectInterest,
     val continuation: Continuation<Unit>
@@ -109,6 +109,7 @@ internal inline fun processSelectedEvents(
         }
         if (select_fd_isset(event.descriptor, set.ptr) != 0) {
             completed.add(event)
+            println("resume $event")
             event.continuation.resume(Unit)
             continue
         }
