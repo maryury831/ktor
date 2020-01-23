@@ -4,9 +4,9 @@
 
 package io.ktor.util
 
-import kotlinx.coroutines.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
+import kotlinx.coroutines.*
 
 private const val CHUNK_BUFFER_SIZE = 4096L
 
@@ -21,7 +21,7 @@ fun ByteReadChannel.split(coroutineScope: CoroutineScope): Pair<ByteReadChannel,
 
     coroutineScope.launch {
         try {
-            while (!this@split.isClosedForRead) {
+            while (!isClosedForRead) {
                 this@split.readRemaining(CHUNK_BUFFER_SIZE).use { chunk ->
                     listOf(
                         async { first.writePacket(chunk.copy()) },
@@ -40,6 +40,33 @@ fun ByteReadChannel.split(coroutineScope: CoroutineScope): Pair<ByteReadChannel,
     }
 
     return first to second
+}
+
+/**
+ * Copy source channel to both output channels chunk by chunk.
+ */
+@InternalAPI
+fun ByteReadChannel.copyToBoth(first: ByteWriteChannel, second: ByteWriteChannel) {
+    GlobalScope.launch(Dispatchers.Unconfined) {
+        try {
+            while (!isClosedForRead && (!first.isClosedForWrite || !second.isClosedForWrite)) {
+                readRemaining(CHUNK_BUFFER_SIZE).use {
+                    try {
+                        first.writePacket(it.copy())
+                    } catch (_: Throwable) {
+                    }
+
+                    try {
+                        second.writePacket(it.copy())
+                    } catch (_: Throwable) {
+                    }
+                }
+            }
+        } finally {
+            first.close()
+            second.close()
+        }
+    }
 }
 
 /**
