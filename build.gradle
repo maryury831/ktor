@@ -304,20 +304,19 @@ task testCoverage(type: JacocoReport) {
         kotlin.sourceSets.findByName("jvmMain").kotlin.srcDirs
     })
 
-    def coverageSourceDirs = commonSources + jvmSources
+    def coverageSourceDirs = files(commonSources, jvmSources)
 
     def classes = files(subprojects.collect {
         files(fileTree(dir: "${buildDir}/classes/kotlin/jvm/"))
     })
 
     def samples = files(subprojects.collect {
-        files("${buildDir}/jacoco/jvmTest.exec")
+        "${buildDir}/jacoco/jvmTest.exec"
     })
 
-
-    classDirectories.from files(fileTree(dir: "${buildDir}/classes/kotlin/jvm/"))
+    classDirectories.from files(classes)
     sourceDirectories.from files(coverageSourceDirs)
-    additionalSourceDirs.from files(classes)
+    additionalSourceDirs.from files(coverageSourceDirs)
     executionData.from(samples)
 
     reports {
