@@ -44,7 +44,9 @@ object JettyUpgradeImpl : ServletUpgrade {
             val job = upgrade.upgrade(inputChannel, outputChannel, engineContext, userContext)
 
             writer.invokeOnCompletion {
-                connection.close()
+                job.invokeOnCompletion {
+                    connection.close()
+                }
             }
 
             job.join()
